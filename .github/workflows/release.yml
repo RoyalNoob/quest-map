@@ -1,0 +1,39 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write      # create the release
+      id-token: write      # sign the attestations (Sigstore, keyless)
+      attestations: write  # store them on GitHub
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # No code-signing certificate: every release file gets a GitHub build attestation instead, which proves it
+      # was built here from this tag. Check a download with: gh attestation verify <file> --repo RoyalNoob/quest-map
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            dist/*.zip
+            dist/*.tar.gz
+            dist/checksums.txt
+            scripts/install.sh
+            scripts/install.ps1

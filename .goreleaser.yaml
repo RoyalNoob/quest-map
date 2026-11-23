@@ -1,0 +1,37 @@
+version: 2
+
+project_name: quest-map
+
+builds:
+  - id: quest-map
+    main: ./cmd/quest-map
+    binary: quest-map
+    env:
+      - CGO_ENABLED=0
+    goos: [windows, linux]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w -X main.version=v{{.Version}} -X main.commit={{.ShortCommit}} -X main.date={{.Date}}
+
+archives:
+  - formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    # No version in the name, so releases/latest/download/<name> always works (installers, quest-map update).
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: checksums.txt
+
+release:
+  # The installers are served from releases/latest/download, like the archives.
+  extra_files:
+    - glob: scripts/install.sh
+      name_template: quest-map-installer.sh
+    - glob: scripts/install.ps1
+      name_template: quest-map-installer.ps1
+
+changelog:
+  sort: asc

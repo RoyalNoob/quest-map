@@ -1,0 +1,340 @@
+# Built-in suite: game development with Unreal Engine (spec §4.3).
+# A file suites/gamedev-unreal.toml in the board folder extends it: keys it sets win.
+# Top-level keys must come before the first [table].
+
+title = "Game development (Unreal Engine)"
+disciplines = ["code", "blueprint", "design", "level", "art", "anim", "vfx", "audio", "ui", "qa"]
+release_targets = ["Win64", "Linux", "Android", "IOS"]
+release_id_format = "b<YYYY-MM-DD>.<n>"
+
+[words]
+release = "build"
+releases = "builds"
+target = "platform"
+item = "asset"
+feedback = "playtest note"
+discipline = "discipline"
+
+[[pipelines]]
+name = "prop"
+steps = ["blockout", "model", "texture", "import", "material", "in-engine"]
+
+[[pipelines]]
+name = "character"
+steps = ["concept", "model", "texture", "rig", "anim", "import", "in-engine"]
+
+[[pipelines]]
+name = "level"
+steps = ["blockout", "layout", "art-pass", "lighting", "polish"]
+
+[[pipelines]]
+name = "vfx"
+steps = ["concept", "niagara", "in-engine"]
+
+[intake]
+status = "backlog"
+doer = "person"
+discipline = "qa"
+labels = ["playtest"]
+
+[adapters]
+assets = "unreal"
+locks = ["git-lfs", "lore"]
+vcs = ["lore"]
+
+# Custom fields: extra front-matter keys the UI shows and edits and the filter understands (platform:ps5).
+# Fields: key (lowercase letters and _), label, type (text or choice), values (for a choice), help.
+
+[[fields]]
+key = "platform"
+label = "Platform"
+type = "choice"
+values = ["Win64", "Linux", "Android", "IOS"]
+
+[[fields]]
+key = "ue_map"
+label = "Unreal map"
+help = "/Game/Maps/L_Bridge"
+
+# When the UI shows a task field: field key -> terms (label:, discipline:, doer:, status:, priority: or a custom
+# field key, "-" negates), any of which shows it. A field not listed always shows; a field with a value always
+# shows; hidden ones are under "More fields". A board file that sets [show] replaces the whole table.
+[show]
+found_in = ["label:bug", "label:crash", "label:playtest", "discipline:qa"]
+fixed_in = ["label:bug", "label:crash", "label:playtest", "discipline:qa"]
+asset = ["discipline:art", "discipline:anim", "discipline:vfx", "discipline:level", "label:asset"]
+pipeline = ["discipline:art", "discipline:anim", "discipline:vfx", "discipline:level", "label:asset"]
+
+# Task templates, offered in the web UI's New task dialog and by task_new's template argument. Fields: name,
+# title (a title start for the UI), body, status (backlog, todo), doer, priority, discipline, labels, pipeline.
+# A template fills the fields a new task leaves empty; its labels are added.
+
+[[templates]]
+name = "Bug"
+title = "Bug: "
+labels = ["bug"]
+body = """
+## Steps to reproduce
+1.
+
+## Expected
+
+## Actual
+
+## Build and platform
+- Build:
+- Platform:
+"""
+
+[[templates]]
+name = "Crash"
+title = "Crash: "
+priority = "high"
+labels = ["bug", "crash"]
+body = """
+## What happened
+
+## Steps to reproduce
+1.
+
+## Build and platform
+- Build:
+- Platform:
+
+## Callstack / log
+```
+```
+"""
+
+[[templates]]
+name = "Performance"
+title = "Perf: "
+discipline = "code"
+labels = ["perf"]
+body = """
+## Where
+- Map / scene:
+- Platform:
+
+## Measured
+- Frame time (stat unit):
+- Budget:
+
+## Steps to reproduce
+1.
+"""
+
+[[templates]]
+name = "Prop asset"
+title = "Prop: "
+discipline = "art"
+pipeline = "prop"
+labels = ["asset"]
+body = """
+## Reference
+
+## Budget
+- Triangles:
+- Texture size / texel density:
+
+## Unreal
+- Content path: /Game/Props/
+- Collision:
+"""
+
+[[templates]]
+name = "Character asset"
+title = "Character: "
+discipline = "art"
+pipeline = "character"
+labels = ["asset"]
+body = """
+## Concept / reference
+
+## Budget
+- Triangles:
+- Bones:
+- Texture sets:
+
+## Animations needed
+-
+"""
+
+[[templates]]
+name = "Level"
+title = "Level: "
+discipline = "level"
+pipeline = "level"
+body = """
+## Goal of the space
+
+## Gameplay beats
+-
+
+## Unreal
+- Map: /Game/Maps/
+"""
+
+# Saved views, offered in the web UI's view picker. Fields: name, filter (the search box language),
+# lanes ("", discipline, milestone), sort ("", priority, updated, created, title), fields (card fields:
+# priority claim steps doer discipline milestone labels spent found; empty = default), layout (board, table).
+
+[[views]]
+name = "Triage"
+filter = "status:backlog"
+lanes = "discipline"
+sort = "priority"
+
+[[views]]
+name = "Playtest notes"
+filter = "label:playtest -status:done"
+sort = "created"
+fields = ["priority", "discipline", "found"]
+
+[[views]]
+name = "Agents at work"
+filter = "doer:agent -status:done"
+sort = "updated"
+fields = ["claim", "steps", "discipline", "spent"]
+
+[[views]]
+name = "Blocked"
+filter = "blocked:yes"
+lanes = "discipline"
+sort = "priority"
+
+[[views]]
+name = "By milestone"
+lanes = "milestone"
+sort = "priority"
+
+# Labels per UI language (spec §4.4): what the web UI shows for words, disciplines, steps, templates, views and
+# fields. The keys and names above stay as they are in task files and filters; only their labels change.
+
+[lang.ja]
+title = "ゲーム開発(Unreal Engine)"
+
+[lang.ja.pipelines]
+prop = "プロップ"
+character = "キャラクター"
+level = "レベル"
+vfx = "VFX"
+
+[lang.ja.wording]
+release = "ビルド"
+releases = "ビルド"
+target = "プラットフォーム"
+item = "アセット"
+feedback = "プレイテストメモ"
+discipline = "分野"
+
+[lang.ja.disciplines]
+code = "コード"
+blueprint = "ブループリント"
+design = "ゲームデザイン"
+level = "レベル"
+art = "アート"
+anim = "アニメーション"
+vfx = "VFX"
+audio = "サウンド"
+ui = "UI"
+qa = "QA"
+
+[lang.ja.steps]
+blockout = "ブロックアウト"
+model = "モデリング"
+texture = "テクスチャ"
+import = "インポート"
+material = "マテリアル"
+in-engine = "エンジン実装"
+concept = "コンセプト"
+rig = "リグ"
+anim = "アニメーション"
+layout = "レイアウト"
+art-pass = "アートパス"
+lighting = "ライティング"
+polish = "ポリッシュ"
+niagara = "Niagara"
+
+[lang.ja.templates]
+"Bug" = "バグ"
+"Crash" = "クラッシュ"
+"Performance" = "パフォーマンス"
+"Prop asset" = "プロップアセット"
+"Character asset" = "キャラクターアセット"
+"Level" = "レベル"
+
+[lang.ja.views]
+"Triage" = "トリアージ"
+"Playtest notes" = "プレイテストメモ"
+"Agents at work" = "作業中のエージェント"
+"Blocked" = "ブロック中"
+"By milestone" = "マイルストーン別"
+
+[lang.ja.fields]
+platform = "プラットフォーム"
+ue_map = "Unreal マップ"
+
+[lang.zh-TW]
+title = "遊戲開發(Unreal Engine)"
+
+[lang.zh-TW.pipelines]
+prop = "道具"
+character = "角色"
+level = "關卡"
+vfx = "特效"
+
+[lang.zh-TW.wording]
+release = "版本"
+releases = "版本"
+target = "平台"
+item = "資產"
+feedback = "試玩回饋"
+discipline = "職能"
+
+[lang.zh-TW.disciplines]
+code = "程式"
+blueprint = "藍圖"
+design = "企劃"
+level = "關卡"
+art = "美術"
+anim = "動畫"
+vfx = "特效"
+audio = "音效"
+ui = "UI"
+qa = "QA"
+
+[lang.zh-TW.steps]
+blockout = "粗模"
+model = "建模"
+texture = "貼圖"
+import = "匯入"
+material = "材質"
+in-engine = "引擎整合"
+concept = "概念設計"
+rig = "綁定"
+anim = "動畫"
+layout = "佈局"
+art-pass = "美術處理"
+lighting = "打光"
+polish = "打磨"
+niagara = "Niagara"
+
+[lang.zh-TW.templates]
+"Bug" = "錯誤"
+"Crash" = "當機"
+"Performance" = "效能"
+"Prop asset" = "道具資產"
+"Character asset" = "角色資產"
+"Level" = "關卡"
+
+[lang.zh-TW.views]
+"Triage" = "初步分類"
+"Playtest notes" = "試玩回饋"
+"Agents at work" = "工作中的代理"
+"Blocked" = "被阻擋"
+"By milestone" = "依里程碑"
+
+[lang.zh-TW.fields]
+platform = "平台"
+ue_map = "Unreal 地圖"

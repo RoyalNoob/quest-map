@@ -1,0 +1,5 @@
+timezone = "UTC"
+
+[prices."m-big"]
+input = 10.0
+output = 20.0

@@ -1,0 +1,13 @@
+/bin/
+/dist/
+*.exe
+*.test
+*.out
+coverage.*
+.idea/
+.vscode/
+
+# graphify: commit the graph, not its caches
+/graphify-out/cache/
+/graphify-out/.graphify_*
+/.claude/settings.local.json

@@ -1,0 +1,9 @@
+/* Base style of a plugin view (spec §8.5). The host sets the theme's CSS variables on :root. */
+:root { color-scheme: light dark; }
+html, body { margin: 0; background: var(--bg, Canvas); color: var(--text, CanvasText); font: 13px/1.45 var(--font, system-ui, sans-serif); }
+a { color: var(--accent); }
+button, select, input { font: inherit; color: inherit; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 3px 8px; }
+button { cursor: pointer; }
+table { border-collapse: collapse; }
+th, td { border-bottom: 1px solid var(--line); padding: 3px 8px; text-align: left; }
+th { color: var(--muted); font-weight: 600; }

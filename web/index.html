@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>quest-map</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/app.css">
+<link rel="stylesheet" href="/custom.css">
+<script src="/app.js" defer></script>
+</head>
+<body>
+<!-- UI text comes from the catalogs (web/i18n): data-i18n sets an element's text, data-i18n-<attr> an attribute.
+     The English here is only what shows before the catalog loads. -->
+<nav id="sidebar" class="sidebar" data-i18n-aria-label="nav.projects" aria-label="Projects">
+  <div class="side-head">
+    <div class="brand"><img src="/icon.svg" alt="" width="22" height="22"><span class="side-label">quest-map</span></div>
+    <button id="side-toggle" class="icon side-toggle" data-i18n-title="side.collapse_key" data-i18n-aria-label="side.collapse" title="Collapse sidebar ( [ )" aria-label="Collapse sidebar" aria-expanded="true">«</button>
+  </div>
+  <div class="side-section side-label" data-i18n="nav.projects">Projects</div>
+  <ul id="project-list" class="project-list"></ul>
+  <button id="project-new" class="side-item side-new" data-i18n-title="project.new" title="New project"><span class="side-icon">+</span><span class="side-label" data-i18n="project.new">New project</span></button>
+  <span class="spacer"></span>
+  <button id="settings-open" class="side-item" data-i18n-title="settings.title" title="Settings"><span class="side-icon">⚙</span><span class="side-label" data-i18n="settings.title">Settings</span></button>
+</nav>
+<div class="shell">
+<header class="top">
+  <div class="top-row">
+    <nav class="tabs" data-i18n-aria-label="nav.views" aria-label="Views">
+      <button data-view="board" class="on" data-i18n="nav.board">Board</button>
+      <button data-view="milestones" data-i18n="nav.milestones">Milestones</button>
+      <button data-view="releases" id="tab-releases" data-i18n="nav.releases">Releases</button>
+      <button data-view="insights" data-i18n="nav.insights">Insights</button>
+      <button data-view="knowledge" data-i18n="nav.knowledge">Knowledge</button>
+    </nav>
+    <div class="filter">
+      <input id="filter" type="search" spellcheck="false" autocomplete="off"
+             data-i18n-placeholder="filter.placeholder" data-i18n-aria-label="filter.aria"
+             placeholder="Filter or task id  ( / )  e.g. status:doing label:bug  ·  RPG-12" aria-label="Filter">
+      <div id="filter-pills" class="pills" role="group" data-i18n-aria-label="filter.terms" aria-label="Filter terms"></div>
+      <div id="filter-hint" class="filter-hint" hidden></div>
+      <div id="filter-error" class="filter-error" hidden></div>
+    </div>
+    <button id="new" class="primary" data-i18n-title="new.button_title" title="New task (n)" data-i18n="new.button">New task</button>
+    <button id="warnings" class="warn" hidden data-i18n-title="warn.button_title" title="Problems on the board"></button>
+    <button id="sync" class="sync" hidden></button>
+    <span id="live" class="live" data-i18n-title="live.title" title="Live updates">●</span>
+    <button id="help" class="icon" data-i18n-title="help.button_title" data-i18n-aria-label="help.button" title="Keyboard shortcuts (?)" aria-label="Help">?</button>
+  </div>
+  <div id="board-bar" class="board-bar">
+    <div class="view-pick" id="view-pick-wrap">
+      <select id="view-pick" data-i18n-aria-label="board.view" data-i18n-title="board.view_title" aria-label="Saved view" title="Saved view (v)"></select>
+      <button id="view-edit" class="icon" data-i18n-title="board.view_edit_title" data-i18n-aria-label="board.view_edit" title="Card fields and saving this view" aria-label="View options">⋯</button>
+    </div>
+    <div id="layout" class="layout-toggle" role="group" data-i18n-aria-label="board.layout" aria-label="Layout">
+      <button data-layout="board" data-i18n-title="board.layout_board_title" data-i18n-aria-label="board.layout_board" title="Board layout (t)" aria-label="Board layout">▦</button>
+      <button data-layout="table" data-i18n-title="board.layout_table_title" data-i18n-aria-label="board.layout_table" title="Table layout (t)" aria-label="Table layout">☰</button>
+    </div>
+    <button id="mine" class="toggle" aria-pressed="false" data-i18n="board.mine">My tasks</button>
+    <span class="spacer"></span>
+    <label class="group"><span data-i18n="board.lanes">Lanes</span>
+      <select id="group" data-i18n-aria-label="board.lanes_aria" aria-label="Swimlanes">
+        <option value="" data-i18n="board.lanes_none">none</option>
+        <option value="discipline" data-i18n="board.lanes_discipline">discipline</option>
+        <option value="milestone" data-i18n="board.lanes_milestone">milestone</option>
+      </select>
+    </label>
+    <label class="group"><span data-i18n="board.sort">Sort</span>
+      <select id="sort" data-i18n-aria-label="board.sort_aria" aria-label="Sort cards">
+        <option value="" data-i18n="sort.id">id</option>
+        <option value="priority" data-i18n="sort.priority">priority</option>
+        <option value="updated" data-i18n="sort.updated">last changed</option>
+        <option value="created" data-i18n="sort.created">newest</option>
+        <option value="title" data-i18n="sort.title">title</option>
+      </select>
+    </label>
+  </div>
+</header>
+
+<main id="board" class="board" aria-live="polite"></main>
+<div id="empty" class="empty" hidden></div>
+
+<main id="milestones-view" class="view" hidden>
+  <div class="view-head">
+    <h2 data-i18n="nav.milestones">Milestones</h2>
+    <span class="spacer"></span>
+    <label class="inline"><span data-i18n="ms.suite">Suite</span> <select id="suite-select" data-i18n-title="ms.suite_title" title="What this project calls things, its disciplines and pipelines"></select></label>
+    <button id="suite-edit" class="small" data-i18n="ms.suite_edit" data-i18n-title="ms.suite_edit_title" title="Edit the suite file in the board folder">Edit suite</button>
+    <button id="ms-edit" class="small" data-i18n="ms.edit">Edit milestones</button>
+  </div>
+  <div id="suite-error" class="banner" hidden></div>
+  <form id="ms-form" class="ms-form" hidden>
+    <div id="ms-rows"></div>
+    <div class="row">
+      <button type="button" id="ms-add" class="small" data-i18n="ms.add">Add milestone</button>
+      <span class="spacer"></span>
+      <button type="button" id="ms-cancel" class="small" data-i18n="common.cancel">Cancel</button>
+      <button class="primary small" data-i18n="ms.save">Save milestones</button>
+    </div>
+  </form>
+  <div id="ms-list"></div>
+</main>
+
+<main id="insights-view" class="view" hidden>
+  <div class="view-head">
+    <h2 data-i18n="nav.insights">Insights</h2>
+    <span class="muted" data-i18n="ins.subtitle">How well the agent setup works – agent tasks next to person tasks</span>
+    <span class="spacer"></span>
+    <label class="inline"><span data-i18n="ins.period">Period</span> <select id="ins-since">
+      <option value="7d" data-i18n="ins.days7">7 days</option><option value="30d" selected data-i18n="ins.days30">30 days</option>
+      <option value="90d" data-i18n="ins.days90">90 days</option><option value="" data-i18n="ins.all_time">All time</option>
+    </select></label>
+    <label class="inline"><span data-i18n="ins.group_by">Group by</span> <select id="ins-by">
+      <option value="" data-i18n="ins.by_nothing">nothing</option><option value="discipline" data-i18n="ins.by_discipline">discipline</option>
+      <option value="model" data-i18n="ins.by_model">model</option><option value="client" data-i18n="ins.by_client">client</option>
+      <option value="label" data-i18n="ins.by_label">label</option><option value="milestone" data-i18n="ins.by_milestone">milestone</option>
+    </select></label>
+    <a id="ins-raw" class="small" target="_blank" data-i18n-title="ins.raw_title" title="Raw activity records (JSON) for Grafana or a spreadsheet" data-i18n="ins.raw">Raw data</a>
+  </div>
+  <div id="ins-body"></div>
+</main>
+
+<main id="knowledge-view" class="view" hidden>
+  <div class="view-head">
+    <h2 data-i18n="nav.knowledge">Knowledge</h2>
+    <input id="kb-q" type="search" spellcheck="false" autocomplete="off" class="kb-q"
+      data-i18n-placeholder="kb.search_placeholder" placeholder="Search pages  e.g. bridge collision tag:physics stale:yes">
+    <label class="inline"><input type="checkbox" id="kb-retired"> <span data-i18n="kb.show_retired">Show retired</span></label>
+    <span class="spacer"></span>
+    <button id="kb-new" class="small primary" data-i18n="kb.new">New page</button>
+  </div>
+  <div class="kb-panes">
+    <div id="kb-list" class="kb-list"></div>
+    <div id="kb-page" class="kb-page"></div>
+  </div>
+</main>
+
+<main id="plugin-view" class="view plugin-view" hidden></main>
+
+<main id="releases-view" class="view" hidden>
+  <div class="view-head">
+    <h2 id="rel-title" data-i18n="nav.releases">Releases</h2>
+    <span class="spacer"></span>
+    <button id="fb-open" class="small" data-i18n="fb.open">File feedback</button>
+  </div>
+  <form id="rel-form" class="rel-form">
+    <input id="rel-id" data-i18n-placeholder="rel.col_id" placeholder="id" required spellcheck="false">
+    <input id="rel-target" list="targets" data-i18n-placeholder="rel.target_placeholder" placeholder="target" spellcheck="false">
+    <input id="rel-revision" data-i18n-placeholder="rel.col_revision" placeholder="revision" spellcheck="false">
+    <input id="rel-notes" data-i18n-placeholder="rel.col_notes" placeholder="notes">
+    <button class="primary small" id="rel-add" data-i18n="rel.record">Record</button>
+  </form>
+  <div id="rel-list"></div>
+</main>
+</div>
+
+<aside id="drawer" class="drawer" hidden data-i18n-aria-label="drawer.aria" aria-label="Task">
+  <div id="d-resize" class="drawer-resize" data-i18n-title="drawer.resize" title="Drag to resize" aria-hidden="true"></div>
+  <div class="drawer-head">
+    <button id="d-collapse" class="icon drawer-toggle" data-i18n-title="drawer.collapse_key" data-i18n-aria-label="drawer.collapse" title="Collapse panel ( ] )" aria-label="Collapse panel" aria-expanded="true">»</button>
+    <span id="d-id" class="mono"></span>
+    <span id="d-claim" class="claim"></span>
+    <span class="spacer"></span>
+    <button id="d-close" class="icon" data-i18n-title="drawer.close_title" data-i18n-aria-label="common.close" title="Close (Esc)" aria-label="Close">✕</button>
+  </div>
+  <div id="d-banner" class="banner" hidden></div>
+  <div class="drawer-body">
+    <input id="d-title" class="title-input" data-i18n-aria-label="drawer.f_title" aria-label="Title">
+    <div class="fields">
+      <label><span data-i18n="drawer.f_status">Status</span><select id="d-status"></select></label>
+      <label><span data-i18n="drawer.f_doer">Doer</span><select id="d-doer"><option value="agent"></option><option value="person"></option></select></label>
+      <label><span data-i18n="drawer.f_assignees">Assignees</span><input id="d-assignees" list="assignees" spellcheck="false" data-i18n-placeholder="drawer.names_placeholder" placeholder="names, comma separated"></label>
+      <label><span data-i18n="drawer.f_priority">Priority</span><select id="d-priority"><option value="low"></option><option value="normal"></option><option value="high"></option><option value="urgent"></option></select></label>
+      <label><span data-i18n="drawer.f_discipline">Discipline</span><input id="d-discipline" list="disciplines"></label>
+      <label><span data-i18n="drawer.f_milestone">Milestone</span><input id="d-milestone" list="milestones"></label>
+      <label><span data-i18n="drawer.f_labels">Labels</span><input id="d-labels" data-i18n-placeholder="drawer.comma_placeholder" placeholder="comma separated"></label>
+      <label><span data-i18n="drawer.f_item">Item</span><input id="d-asset" spellcheck="false"></label>
+      <label><span data-i18n="drawer.f_pipeline">Pipeline</span><select id="d-pipeline"></select></label>
+      <div class="wide steps-row" id="d-steps-row" hidden>
+        <div id="d-steps" class="steps big"></div>
+        <button id="d-advance" class="small" data-i18n-title="drawer.advance_title" title="Move to the next step" data-i18n="drawer.advance">Next step →</button>
+      </div>
+      <div class="wide locks" id="d-locks" hidden></div>
+      <label><span data-i18n="drawer.f_blocked">Blocked by</span><input id="d-blocked" placeholder="RPG-3, RPG-9" spellcheck="false"></label>
+      <div class="wide task-links" id="d-links" hidden></div>
+      <label><span data-i18n="drawer.f_found">Found in release</span><input id="d-found" list="releases" spellcheck="false"></label>
+      <label><span data-i18n="drawer.f_fixed">Fixed in release</span><input id="d-fixed" list="releases" spellcheck="false"></label>
+      <label class="wide"><span data-i18n="drawer.f_url">URL</span><input id="d-url" data-i18n-placeholder="drawer.url_placeholder" placeholder="PR or Lore revision" spellcheck="false"></label>
+    </div>
+    <div id="d-custom" class="fields custom-fields" hidden></div>
+    <button id="d-more" type="button" class="small more-fields" hidden></button>
+    <div class="body-head">
+      <span data-i18n="drawer.description">Description</span>
+      <span class="spacer"></span>
+      <button id="d-preview-toggle" class="small" data-i18n="drawer.preview">Preview</button>
+    </div>
+    <textarea id="d-body" rows="8" data-i18n-placeholder="drawer.body_placeholder" placeholder="Markdown. Paste an image to attach it."></textarea>
+    <div id="d-preview" class="preview" hidden></div>
+    <div class="save-row">
+      <button id="d-save" class="primary" disabled data-i18n="drawer.save">Save (Ctrl+S)</button>
+      <span id="d-dirty" class="muted"></span>
+    </div>
+
+    <section>
+      <h3 data-i18n="drawer.add_note">Add note</h3>
+      <textarea id="d-note" rows="2" data-i18n-placeholder="drawer.note_placeholder" placeholder="What changed, what was decided"></textarea>
+      <button id="d-note-add" class="small" data-i18n="drawer.add_note">Add note</button>
+    </section>
+
+    <section>
+      <h3 data-i18n="drawer.spent">Spent</h3>
+      <div id="d-spent"></div>
+      <details class="correction">
+        <summary data-i18n="drawer.correction">Add a correction</summary>
+        <div class="row">
+          <input id="c-tokens" type="number" data-i18n-placeholder="drawer.c_tokens" placeholder="tokens (+/-)">
+          <input id="c-time" data-i18n-placeholder="drawer.c_time" placeholder="time, e.g. 30m or -15m">
+          <input id="c-note" data-i18n-placeholder="drawer.c_note" placeholder="why">
+          <button id="c-add" class="small" data-i18n="drawer.c_add">Add</button>
+        </div>
+      </details>
+    </section>
+
+    <section>
+      <h3 data-i18n="drawer.knowledge">Knowledge</h3>
+      <div id="d-kb"></div>
+    </section>
+
+    <section>
+      <h3 data-i18n="drawer.log">Log</h3>
+      <ol id="d-log" class="log"></ol>
+    </section>
+
+    <section>
+      <h3 data-i18n="drawer.history">Status history and corrections</h3>
+      <ol id="d-history" class="history"></ol>
+    </section>
+
+    <section class="actions">
+      <button id="d-release" class="small" hidden data-i18n="drawer.release">Release claim</button>
+      <button id="d-archive" class="small" hidden data-i18n="drawer.archive">Archive</button>
+      <label class="inline"><span data-i18n="drawer.move_to">Move to</span> <select id="d-move-to"></select></label>
+      <button id="d-move" class="small" data-i18n="drawer.move">Move</button>
+      <span class="spacer"></span>
+      <button id="d-delete" class="small danger" data-i18n="menu.delete">Delete…</button>
+    </section>
+  </div>
+</aside>
+
+<dialog id="new-dialog">
+  <form id="new-form" method="dialog">
+    <h2 data-i18n="new.button">New task</h2>
+    <label id="n-template-row"><span data-i18n="new.template">Template</span><select id="n-template"></select></label>
+    <label><span data-i18n="drawer.f_title">Title</span><input id="n-title" required autocomplete="off"></label>
+    <div class="fields">
+      <label><span data-i18n="drawer.f_doer">Doer</span><select id="n-doer"><option value="agent"></option><option value="person"></option></select></label>
+      <label><span data-i18n="drawer.f_assignees">Assignees</span><input id="n-assignees" list="assignees" spellcheck="false" data-i18n-placeholder="drawer.comma_placeholder" placeholder="comma separated"></label>
+      <label><span data-i18n="drawer.f_status">Status</span><select id="n-status"><option value="todo"></option><option value="backlog"></option></select></label>
+      <label><span data-i18n="drawer.f_priority">Priority</span><select id="n-priority"><option value="normal"></option><option value="low"></option><option value="high"></option><option value="urgent"></option></select></label>
+      <label><span data-i18n="drawer.f_discipline">Discipline</span><input id="n-discipline" list="disciplines"></label>
+      <label><span data-i18n="drawer.f_milestone">Milestone</span><input id="n-milestone" list="milestones"></label>
+      <label><span data-i18n="drawer.f_labels">Labels</span><input id="n-labels" data-i18n-placeholder="drawer.comma_placeholder" placeholder="comma separated"></label>
+      <label><span data-i18n="drawer.f_pipeline">Pipeline</span><select id="n-pipeline"></select></label>
+    </div>
+    <div id="n-custom" class="fields custom-fields" hidden></div>
+    <button id="n-more" type="button" class="small more-fields" hidden></button>
+    <label><span data-i18n="drawer.description">Description</span><textarea id="n-body" rows="8"></textarea></label>
+    <div class="dialog-buttons">
+      <button id="n-save-template" type="button" data-i18n="new.save_template" data-i18n-title="new.save_template_title" title="Save as template">Save as template</button>
+      <span class="spacer"></span>
+      <button id="n-cancel" type="button" data-i18n="common.cancel">Cancel</button>
+      <button id="n-create" value="create" class="primary" data-i18n="new.create">Create</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="pnew-dialog">
+  <form id="pnew-form" method="dialog">
+    <h2 data-i18n="project.new">New project</h2>
+    <label><span data-i18n="pnew.name">Name</span><input id="pnew-name" maxlength="80" autocomplete="off" data-i18n-placeholder="pnew.name_placeholder" placeholder="Bridge Racer"></label>
+    <div class="fields">
+      <label><span data-i18n="pnew.key">Key</span><input id="pnew-key" maxlength="10" autocomplete="off" spellcheck="false" placeholder="BR"
+        data-i18n-title="pnew.key_title" title="Prefix of task ids, e.g. BR-12: uppercase letters and digits, starting with a letter"></label>
+      <label><span data-i18n="pnew.folder">Folder</span><input id="pnew-slug" autocomplete="off" spellcheck="false" placeholder="br"
+        data-i18n-title="pnew.folder_title" title="Folder name under projects/: lowercase letters, digits and dashes"></label>
+      <label><span data-i18n="ms.suite">Suite</span><select id="pnew-suite"></select></label>
+    </div>
+    <label><span data-i18n="pnew.repo">Repository (optional)</span><input id="pnew-repo" autocomplete="off" spellcheck="false" placeholder="git@github.com:acme/bridge-racer.git"
+      data-i18n-title="pnew.repo_title" title="Agents working in this repository use the project without naming it"></label>
+    <p class="muted dialog-note" data-i18n="pnew.note">The key and folder cannot be changed later; the name can.</p>
+    <p id="pnew-error" class="error-note" hidden></p>
+    <div class="dialog-buttons">
+      <button type="button" id="pnew-cancel" data-i18n="common.cancel">Cancel</button>
+      <button value="create" class="primary" data-i18n="pnew.create">Create project</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="pname-dialog">
+  <form id="pname-form" method="dialog">
+    <h2 data-i18n="pname.title">Rename project</h2>
+    <label><span data-i18n="pnew.name">Name</span><input id="pname-input" required maxlength="80" autocomplete="off"></label>
+    <p id="pname-note" class="muted dialog-note"></p>
+    <div class="dialog-buttons">
+      <button type="button" id="pname-cancel" data-i18n="common.cancel">Cancel</button>
+      <button value="save" class="primary" data-i18n="pname.ok">Rename</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="pdel-dialog">
+  <form id="pdel-form" method="dialog">
+    <h2 data-i18n="pdel.title">Delete project</h2>
+    <p id="pdel-question"></p>
+    <p id="pdel-note" class="muted dialog-note"></p>
+    <label><span id="pdel-confirm"></span>
+      <input id="pdel-input" autocomplete="off" spellcheck="false"></label>
+    <p id="pdel-error" class="error-note" hidden></p>
+    <div class="dialog-buttons">
+      <button type="button" id="pdel-cancel" data-i18n="common.cancel">Cancel</button>
+      <button id="pdel-ok" value="delete" class="danger" disabled data-i18n="pdel.title">Delete project</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="warn-dialog">
+  <h2 data-i18n="warn.title">Board problems</h2>
+  <div id="warn-list"></div>
+  <form method="dialog"><div class="dialog-buttons"><button data-i18n="common.close">Close</button></div></form>
+</dialog>
+
+<dialog id="help-dialog">
+  <h2 data-i18n="help.title">Keyboard</h2>
+  <table class="keys">
+    <tr><td><kbd>/</kbd></td><td data-i18n="help.filter">Filter, or type a task id (RPG-12, #12) and press Enter to open it</td></tr>
+    <tr><td><kbd>n</kbd></td><td data-i18n="new.button">New task</td></tr>
+    <tr><td><kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd></td><td data-i18n="help.move">Move between cards (or point at one: the card under the mouse is selected)</td></tr>
+    <tr><td><kbd>Enter</kbd></td><td data-i18n="help.open">Open card</td></tr>
+    <tr><td><kbd>1</kbd>–<kbd>5</kbd></td><td data-i18n="help.status">Set status: backlog, todo, doing, review, done</td></tr>
+    <tr><td><kbd>p</kbd> <kbd>d</kbd> <kbd>l</kbd> <kbd>a</kbd></td><td data-i18n="help.card_keys">Selected card: priority, doer, toggle label, toggle assignee</td></tr>
+    <tr><td><kbd>g</kbd></td><td data-i18n="help.lanes">Lanes: none → discipline → milestone</td></tr>
+    <tr><td><kbd>v</kbd></td><td data-i18n="help.view">Pick a saved view</td></tr>
+    <tr><td><kbd>t</kbd></td><td data-i18n="help.layout">Board or table layout</td></tr>
+    <tr><td><kbd>x</kbd></td><td data-i18n="help.tick">Table: tick the selected row for bulk changes</td></tr>
+    <tr><td><kbd>c</kbd></td><td data-i18n="help.column">Collapse or expand the selected card's column</td></tr>
+    <tr><td><kbd>Shift</kbd>+<kbd>M</kbd></td><td data-i18n="help.mine">My tasks on or off</td></tr>
+    <tr><td><kbd>]</kbd></td><td data-i18n="help.panel">Collapse or expand the task panel</td></tr>
+    <tr><td><kbd>[</kbd></td><td data-i18n="help.sidebar">Collapse or expand the sidebar</td></tr>
+    <tr><td><kbd>b</kbd> <kbd>m</kbd> <kbd>r</kbd> <kbd>i</kbd> <kbd>k</kbd></td><td data-i18n="help.views">Views: board, milestones, releases, insights</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td data-i18n="help.save">Save the open task</td></tr>
+    <tr><td><kbd>Esc</kbd></td><td data-i18n="common.close">Close</td></tr>
+  </table>
+  <p class="muted" data-i18n="help.terms">Filter terms: status: doer: assignee: discipline: milestone: label: priority: asset: model: found:latest blocked:yes stale:yes spent:no, free words; a leading - negates.</p>
+  <form method="dialog"><div class="dialog-buttons"><button data-i18n="common.close">Close</button></div></form>
+</dialog>
+
+<dialog id="view-dialog">
+  <form id="view-form" method="dialog">
+    <h2 data-i18n="viewdlg.title">View</h2>
+    <p class="muted" data-i18n="viewdlg.intro">A view saves the filter, lanes, sort, layout and card fields (table columns) you have now. Your views are kept in this browser; views from the project's suite are shared with everyone.</p>
+    <div class="settings-group">
+      <div class="settings-title" data-i18n="viewdlg.fields">Card fields</div>
+      <div id="v-fields" class="settings-checks"></div>
+    </div>
+    <div id="v-summary" class="v-summary mono"></div>
+    <label><span data-i18n="viewdlg.save_as">Save as</span><input id="v-name" autocomplete="off" data-i18n-placeholder="viewdlg.name_placeholder" placeholder="View name"></label>
+    <div class="dialog-buttons">
+      <button type="button" id="v-delete" class="danger" hidden data-i18n="viewdlg.delete">Delete view</button>
+      <span class="spacer"></span>
+      <button type="button" id="v-cancel" data-i18n="common.close">Close</button>
+      <button type="button" id="v-suite" data-i18n="viewdlg.save_suite" data-i18n-title="viewdlg.save_suite_title" title="Share this view">Save to suite</button>
+      <button id="v-save" class="primary" data-i18n="viewdlg.save">Save view</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="settings-dialog">
+  <h2 data-i18n="settings.title">Settings</h2>
+  <p class="muted" data-i18n="settings.intro">Saved in this browser, except the project setting.</p>
+  <div class="fields">
+    <label><span data-i18n="settings.me">Your name</span><input id="s-me" list="assignees" spellcheck="false" autocomplete="off" data-i18n-title="settings.me_title" title="Used by My tasks: tasks with this assignee"></label>
+    <label><span data-i18n="settings.lang">Language</span><select id="s-lang"></select></label>
+    <label><span data-i18n="settings.theme">Theme</span><select id="s-theme"><option value="" data-i18n="settings.theme_system">System</option><option value="light" data-i18n="settings.theme_light">Light</option><option value="dark" data-i18n="settings.theme_dark">Dark</option></select></label>
+  </div>
+  <div class="settings-group project-settings">
+    <div class="settings-title" id="s-project-title"></div>
+    <label class="inline"><span data-i18n="settings.archive_before">Archive done tasks after</span>
+      <input id="s-archive" type="number" min="0" max="3650" step="1" class="days"> <span data-i18n="settings.archive_unit">days</span></label>
+    <div class="muted small-note" id="s-archive-note"></div>
+  </div>
+  <div class="settings-group">
+    <div class="settings-title" data-i18n="settings.machine">This project on this machine</div>
+    <label><span data-i18n="settings.workdir">Working folder</span><input id="s-workdir" spellcheck="false" autocomplete="off" placeholder="D:\Projects\MyGame"
+      data-i18n-title="settings.workdir_title" title="The git repository or Lore workspace the task panel reads files and locks in"></label>
+    <div class="muted small-note" id="s-workdir-note"></div>
+  </div>
+  <div class="settings-group">
+    <div class="settings-title" data-i18n="settings.sync">Board sync on this machine</div>
+    <label class="inline"><input id="s-sync-auto" type="checkbox"> <span data-i18n="settings.sync_auto">Sync automatically every</span>
+      <input id="s-sync-every" type="number" min="1" max="1440" step="1" class="days"> <span data-i18n="settings.sync_unit">minutes</span></label>
+    <div class="muted small-note" id="s-sync-note"></div>
+  </div>
+  <div class="settings-group">
+    <div class="settings-title" data-i18n="settings.columns">Collapsed columns</div>
+    <div id="s-columns" class="settings-checks"></div>
+  </div>
+  <div class="settings-group">
+    <label class="inline"><input type="checkbox" id="s-sidebar"> <span data-i18n="settings.collapse_sidebar">Collapse the sidebar</span></label>
+  </div>
+  <div class="settings-group">
+    <div class="settings-title" data-i18n="settings.plugins">Plugins on this machine</div>
+    <div id="s-plugins" class="settings-plugins"></div>
+    <p class="muted small-note" data-i18n="settings.plugins_trust">A plugin can read the board, and could send what it reads to another site. Turn on only plugins you trust.</p>
+  </div>
+  <p class="muted small-note" id="s-css-note"></p>
+  <form method="dialog"><div class="dialog-buttons"><button type="button" id="s-keys" data-i18n="help.button_label">Keyboard shortcuts</button><span class="spacer"></span><button data-i18n="common.close">Close</button></div></form>
+</dialog>
+
+<dialog id="suite-dialog" class="suite-dialog">
+  <form id="se-form" method="dialog">
+    <h2 data-i18n="se.title">Edit suite</h2>
+    <p class="muted" data-i18n="se.intro">A suite is a TOML file in the board's suites folder.</p>
+    <label><span data-i18n="se.name">Suite</span><input id="se-name" list="suite-names" spellcheck="false" autocomplete="off" data-i18n-title="se.name_title" title="Pick a suite, or type a new name to make one"></label>
+    <div id="se-note" class="muted small-note"></div>
+    <textarea id="se-text" class="mono" rows="18" spellcheck="false" autocomplete="off" data-i18n-placeholder="se.placeholder"></textarea>
+    <details id="se-base-box"><summary data-i18n="se.base">Built-in suite, for reference</summary><pre id="se-base" class="mono se-base"></pre></details>
+    <p id="se-error" class="error-note" hidden></p>
+    <div class="dialog-buttons">
+      <button type="button" id="se-delete" class="danger" hidden></button>
+      <span class="spacer"></span>
+      <button type="button" id="se-cancel" data-i18n="common.close">Close</button>
+      <button id="se-save" class="primary" data-i18n="se.save">Save suite</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="fb-dialog">
+  <form id="fb-form" method="dialog">
+    <h2 id="fb-title" data-i18n="fb.open">File feedback</h2>
+    <label><span data-i18n="fb.text">What happened (first line becomes the title)</span><textarea id="fb-text" rows="5" required></textarea></label>
+    <div class="fields">
+      <label><span data-i18n="drawer.f_found">Found in release</span><input id="fb-release" list="releases" spellcheck="false"></label>
+      <label><span data-i18n="fb.reporter">Reported by</span><input id="fb-reporter"></label>
+    </div>
+    <div class="dialog-buttons">
+      <button id="fb-cancel" type="button" data-i18n="common.cancel">Cancel</button>
+      <button class="primary" data-i18n="fb.submit">File it</button>
+    </div>
+  </form>
+</dialog>
+
+<datalist id="disciplines"></datalist>
+<datalist id="assignees"></datalist>
+<datalist id="milestones"></datalist>
+<datalist id="releases"></datalist>
+<datalist id="targets"></datalist>
+<datalist id="suite-names"></datalist>
+<div id="toast" class="toast" hidden role="status"></div>
+</body>
+</html>

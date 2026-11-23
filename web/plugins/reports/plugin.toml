@@ -1,0 +1,11 @@
+name = "reports"
+version = "1.0.0"
+title = "Reports"
+entry = "main.mjs"
+permissions = ["storage", "ui"]
+
+[[views]]
+id = "reports"
+title = "Reports"
+icon = "📈"
+scope = "project"
